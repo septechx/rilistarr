@@ -2,6 +2,7 @@ use std::result::Result as StdResult;
 use std::{env, fs::read_to_string, io};
 
 use brawl_api::{Client, Player, traits::PropFetchable};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -10,11 +11,11 @@ enum RilistarrError {
     BrawlApi(String),
     #[error("failed to load .env: {0}")]
     DotEnvLoad(#[from] dotenvy::Error),
-    #[error("failed to read BRAWL_TOKEN")]
+    #[error("failed to read BRAWL_TOKEN: {0}")]
     ReadToken(#[from] env::VarError),
-    #[error("failed to read config")]
+    #[error("failed to read config: {0}")]
     ReadConfig(#[from] io::Error),
-    #[error("failed to parse config")]
+    #[error("failed to parse config: {0}")]
     ParseConfig(#[from] serde_json::Error),
 }
 
@@ -35,10 +36,10 @@ fn main() -> Result<()> {
     let data = read_to_string("data.json")?;
     let ids = serde_json::from_str::<Box<[&str]>>(&data)?;
 
-    let mut players = ids
-        .iter()
+    let mut players: Vec<_> = ids
+        .par_iter()
         .map(|id| Player::fetch(&client, id))
-        .collect::<StdResult<Vec<_>, brawl_api::Error>>()?;
+        .collect::<StdResult<Vec<_>, _>>()?;
 
     players.sort_by(|p1, p2| p2.trophies.cmp(&p1.trophies));
 

@@ -45,7 +45,9 @@ async fn on_error(error: poise::FrameworkError<'_, (), Error>) {
 
 #[tokio::main]
 async fn main() -> Result<(), BotError> {
-    dotenvy::dotenv()?;
+    if dotenvy::dotenv().is_err() {
+        eprintln!("\x1b[33mwarning: Failed to load .env file\x1b[0m");
+    }
 
     let token = env::var("DISCORD_TOKEN")?;
     let brawl_token = env::var("BRAWL_TOKEN")?;

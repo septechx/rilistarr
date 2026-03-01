@@ -1,8 +1,0 @@
-[phases.build]
-cmds = ["cargo build --release"]
-
-[phases.setup]
-nixPkgs = ["rustc", "cargo", "gcc"]
-
-[start]
-cmd = "./target/release/rilistarr"

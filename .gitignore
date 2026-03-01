@@ -1,4 +1,7 @@
 /target
 
 /data.json
+/data
+
 /.env*
+!/.env.example

@@ -1,55 +1,88 @@
-use std::result::Result as StdResult;
-use std::{env, fs::read_to_string, io};
+mod brawl_api;
+mod commands;
+mod data;
+mod leaderboard;
+mod permissions;
 
-use brawl_api::{Client, Player, traits::PropFetchable};
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use poise::serenity_prelude as serenity;
+use std::env;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-enum RilistarrError {
-    #[error("failed to query the brawl stars API: {0}")]
-    BrawlApi(String),
-    #[error("failed to load .env: {0}")]
-    DotEnvLoad(#[from] dotenvy::Error),
-    #[error("failed to read BRAWL_TOKEN: {0}")]
-    ReadToken(#[from] env::VarError),
-    #[error("failed to read config: {0}")]
-    ReadConfig(#[from] io::Error),
-    #[error("failed to parse config: {0}")]
-    ParseConfig(#[from] serde_json::Error),
+enum BotError {
+    #[error("Failed to load .env: {0}")]
+    DotEnv(#[from] dotenvy::Error),
+    #[error("Missing environment variable: {0}")]
+    EnvVar(#[from] env::VarError),
+    #[error("Serenity error: {0}")]
+    Serenity(String),
 }
 
-impl From<brawl_api::Error> for RilistarrError {
-    fn from(value: brawl_api::Error) -> Self {
-        Self::BrawlApi(value.to_string())
+impl From<serenity::Error> for BotError {
+    fn from(value: serenity::Error) -> Self {
+        Self::Serenity(value.to_string())
     }
 }
 
-type Result<T> = StdResult<T, RilistarrError>;
+type Error = Box<dyn std::error::Error + Send + Sync>;
 
-fn main() -> Result<()> {
+async fn on_error(error: poise::FrameworkError<'_, (), Error>) {
+    match error {
+        poise::FrameworkError::Setup { error, .. } => {
+            eprintln!("Error during framework setup: {}", error);
+        }
+        poise::FrameworkError::Command { error, ctx, .. } => {
+            eprintln!("Error in command `{}`: {:?}", ctx.command().name, error);
+            let _ = ctx.say(format!("❌ An error occurred: {}", error)).await;
+        }
+        error => {
+            if let Err(e) = poise::builtins::on_error(error).await {
+                eprintln!("Error while handling error: {}", e);
+            }
+        }
+    }
+}
+
+#[tokio::main]
+async fn main() -> Result<(), BotError> {
     dotenvy::dotenv()?;
 
-    let token = env::var("BRAWL_TOKEN")?;
-    let client = Client::new(&token);
+    let token = env::var("DISCORD_TOKEN")?;
+    let brawl_token = env::var("BRAWL_TOKEN")?;
+    let intents = serenity::GatewayIntents::non_privileged() | serenity::GatewayIntents::GUILDS;
 
-    let data = read_to_string("data.json")?;
-    let ids = serde_json::from_str::<Box<[&str]>>(&data)?;
+    let framework = poise::Framework::builder()
+        .options(poise::FrameworkOptions {
+            commands: commands::get_commands(),
+            on_error: |error| Box::pin(on_error(error)),
+            ..Default::default()
+        })
+        .setup(|ctx, _ready, framework| {
+            Box::pin(async move {
+                println!("Bot is starting up...");
 
-    let mut players: Vec<_> = ids
-        .par_iter()
-        .map(|id| Player::fetch(&client, id))
-        .collect::<StdResult<Vec<_>, _>>()?;
+                // Register slash commands
+                poise::builtins::register_globally(ctx, &framework.options().commands).await?;
+                println!("Slash commands registered!");
 
-    players.sort_by(|p1, p2| p2.trophies.cmp(&p1.trophies));
+                // Start background update loop
+                let ctx_clone = ctx.clone();
+                let brawl_token_clone = brawl_token.clone();
+                tokio::spawn(async move {
+                    leaderboard::start_update_loop(ctx_clone, brawl_token_clone).await;
+                });
 
-    let text = players
-        .iter()
-        .enumerate()
-        .map(|(i, p)| format!("({}) {}: {} trophies\n", i + 1, p.name, p.trophies))
-        .collect::<String>();
+                Ok(())
+            })
+        })
+        .build();
 
-    println!("{}", text);
+    let mut client = serenity::Client::builder(&token, intents)
+        .framework(framework)
+        .await?;
+
+    println!("Bot is connected and running!");
+    client.start().await.map_err(BotError::from)?;
 
     Ok(())
 }

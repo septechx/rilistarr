@@ -4,8 +4,9 @@ A Discord bot that displays Brawl Stars leaderboards and automatically updates t
 
 ## Features
 
-- 📊 **Per-Server Leaderboards**: Each Discord server has its own separate leaderboard
-- ⏱️ **Auto-Update**: Automatically updates the leaderboard at configurable intervals
+- 👥 **Clan Leaderboards**: Track and display Brawl Stars clan rankings
+- 📊 **Player Leaderboards**: Track and display individual player rankings
+- ⏱️ **Auto-Update**: Automatically updates leaderboards at configurable intervals
 - 👑 **First Place Role**: Optionally give a special role to the #1 player
 
 ## Setup
@@ -36,22 +37,28 @@ A Discord bot that displays Brawl Stars leaderboards and automatically updates t
 
 ### Player Management (Admin or Mod)
 
-- `/player_add <tag>` - Add a player to the leaderboard
-- `/player_remove <tag>` - Remove a player from the leaderboard
-- `/player_list` - List all players on the leaderboard
+- `/player add <tag>` - Add a player to the leaderboard
+- `/player remove <tag>` - Remove a player from the leaderboard
+- `/player list` - List all players on the leaderboard
+
+### Clan Management (Admin or Mod)
+
+- `/clan add <tag>` - Add a clan to the leaderboard
+- `/clan remove <tag>` - Remove a clan from the leaderboard
+- `/clan list` - List all clans on the leaderboard
+- `/clan update` - Force update the clan leaderboard
 
 ### Configuration (Admin only)
 
-- `/config_channel <channel>` - Set the channel for the leaderboard
-- `/config_interval <minutes>` - Set the update interval (minimum 5 minutes)
-- `/config_role <role>` - Set the role for the #1 player
-- `/config_modrole <role>` - Set the mod role (can add/remove players)
-- `/config_show` - Show current configuration
+- `/config channel <channel>` - Set the channel for the leaderboard
+- `/config interval <minutes>` - Set the update interval (minimum 5 minutes)
+- `/config role <role>` - Set the role for the #1 player
+- `/config modrole <role>` - Set the mod role (can add/remove players)
+- `/config show` - Show current configuration
 
 ### Leaderboard (Admin or Mod)
 
-- `/leaderboard_update` - Force update the leaderboard now
-- `/leaderboard_show` - Show the current leaderboard
+- `/leaderboard update` - Force update the player leaderboard now
 
 ## Permissions
 

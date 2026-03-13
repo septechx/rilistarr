@@ -22,8 +22,12 @@ pub async fn help(
     Ok(())
 }
 
+// ============================================================================
+// Player subcommands
+// ============================================================================
+
 /// Add a player to the leaderboard (Admin or Mod only)
-#[poise::command(slash_command, guild_only, rename = "player add")]
+#[poise::command(slash_command, guild_only, rename = "add")]
 pub async fn player_add(
     ctx: Context<'_>,
     #[description = "Player tag"]
@@ -38,7 +42,6 @@ pub async fn player_add(
         .await
         .ok_or("Could not get member info")?;
 
-    // Check permissions
     if !has_admin_or_mod_permission(ctx.serenity_context(), guild_id, &member).await? {
         ctx.say("❌ You need to be an admin or have the mod role to use this command.")
             .await?;
@@ -69,7 +72,7 @@ pub async fn player_add(
 }
 
 /// Remove a player from the leaderboard (Admin or Mod only)
-#[poise::command(slash_command, guild_only, rename = "player remove")]
+#[poise::command(slash_command, guild_only, rename = "remove")]
 pub async fn player_remove(
     ctx: Context<'_>,
     #[description = "Player tag"] tag: String,
@@ -109,7 +112,7 @@ pub async fn player_remove(
 }
 
 /// List all players on the leaderboard
-#[poise::command(slash_command, guild_only, rename = "player list")]
+#[poise::command(slash_command, guild_only, rename = "list")]
 pub async fn player_list(ctx: Context<'_>) -> Result<(), Error> {
     let guild_id = ctx
         .guild_id()
@@ -132,8 +135,19 @@ pub async fn player_list(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+/// Player management
+#[poise::command(slash_command, guild_only, subcommands("player_add", "player_remove", "player_list"))]
+pub async fn player(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.say("Use `/player add`, `/player remove`, or `/player list`").await?;
+    Ok(())
+}
+
+// ============================================================================
+// Config subcommands
+// ============================================================================
+
 /// Set the leaderboard channel (Admin only)
-#[poise::command(slash_command, guild_only, rename = "config channel")]
+#[poise::command(slash_command, guild_only, rename = "channel")]
 pub async fn config_channel(
     ctx: Context<'_>,
     #[description = "Channel for the leaderboard"] channel: serenity::GuildChannel,
@@ -164,7 +178,7 @@ pub async fn config_channel(
 }
 
 /// Set the update interval in minutes (Admin only)
-#[poise::command(slash_command, guild_only, rename = "config interval")]
+#[poise::command(slash_command, guild_only, rename = "interval")]
 pub async fn config_interval(
     ctx: Context<'_>,
     #[description = "Update interval in minutes (minimum 5)"]
@@ -196,7 +210,7 @@ pub async fn config_interval(
 }
 
 /// Set the role for #1 player (Admin only)
-#[poise::command(slash_command, guild_only, rename = "config role")]
+#[poise::command(slash_command, guild_only, rename = "role")]
 pub async fn config_role(
     ctx: Context<'_>,
     #[description = "Role for the #1 player"] role: serenity::Role,
@@ -226,7 +240,7 @@ pub async fn config_role(
 }
 
 /// Set the mod role for player management (Admin only)
-#[poise::command(slash_command, guild_only, rename = "config modrole")]
+#[poise::command(slash_command, guild_only, rename = "modrole")]
 pub async fn config_modrole(
     ctx: Context<'_>,
     #[description = "Role for moderators (can add/remove players)"] role: serenity::Role,
@@ -255,7 +269,7 @@ pub async fn config_modrole(
 }
 
 /// Show current configuration
-#[poise::command(slash_command, guild_only, rename = "config show")]
+#[poise::command(slash_command, guild_only, rename = "show")]
 pub async fn config_show(ctx: Context<'_>) -> Result<(), Error> {
     let guild_id = ctx
         .guild_id()
@@ -297,8 +311,20 @@ pub async fn config_show(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+/// Configuration management
+#[poise::command(slash_command, guild_only, subcommands("config_channel", "config_interval", "config_role", "config_modrole", "config_show"))]
+pub async fn config(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.say("Use `/config channel`, `/config interval`, `/config role`, `/config modrole`, or `/config show`")
+        .await?;
+    Ok(())
+}
+
+// ============================================================================
+// Leaderboard subcommands
+// ============================================================================
+
 /// Force update the leaderboard now (Admin or Mod only)
-#[poise::command(slash_command, guild_only, rename = "leaderboard update")]
+#[poise::command(slash_command, guild_only, rename = "update")]
 pub async fn leaderboard_update(ctx: Context<'_>) -> Result<(), Error> {
     let guild_id = ctx
         .guild_id()
@@ -341,8 +367,19 @@ pub async fn leaderboard_update(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+/// Leaderboard management
+#[poise::command(slash_command, guild_only, subcommands("leaderboard_update"))]
+pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.say("Use `/leaderboard update`").await?;
+    Ok(())
+}
+
+// ============================================================================
+// Clan subcommands
+// ============================================================================
+
 /// Add a clan to the leaderboard (Admin or Mod only)
-#[poise::command(slash_command, guild_only, rename = "clan add")]
+#[poise::command(slash_command, guild_only, rename = "add")]
 pub async fn clan_add(
     ctx: Context<'_>,
     #[description = "Clan tag"]
@@ -384,7 +421,7 @@ pub async fn clan_add(
 }
 
 /// Remove a clan from the leaderboard (Admin or Mod only)
-#[poise::command(slash_command, guild_only, rename = "clan remove")]
+#[poise::command(slash_command, guild_only, rename = "remove")]
 pub async fn clan_remove(
     ctx: Context<'_>,
     #[description = "Clan tag"] tag: String,
@@ -424,7 +461,7 @@ pub async fn clan_remove(
 }
 
 /// List all clans on the leaderboard
-#[poise::command(slash_command, guild_only, rename = "clan list")]
+#[poise::command(slash_command, guild_only, rename = "list")]
 pub async fn clan_list(ctx: Context<'_>) -> Result<(), Error> {
     let guild_id = ctx
         .guild_id()
@@ -448,7 +485,7 @@ pub async fn clan_list(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 /// Force update the clan leaderboard now (Admin or Mod only)
-#[poise::command(slash_command, guild_only, rename = "clan update")]
+#[poise::command(slash_command, guild_only, rename = "update")]
 pub async fn clan_update(ctx: Context<'_>) -> Result<(), Error> {
     let guild_id = ctx
         .guild_id()
@@ -491,18 +528,30 @@ pub async fn clan_update(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+/// Clan management
+#[poise::command(slash_command, guild_only, subcommands("clan_add", "clan_remove", "clan_list", "clan_update"))]
+pub async fn clan(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.say("Use `/clan add`, `/clan remove`, `/clan list`, or `/clan update`")
+        .await?;
+    Ok(())
+}
+
 pub fn get_commands() -> Vec<Command<(), Error>> {
     vec![
         help(),
+        player(),
         player_add(),
         player_remove(),
         player_list(),
+        config(),
         config_channel(),
         config_interval(),
         config_role(),
         config_modrole(),
         config_show(),
+        leaderboard(),
         leaderboard_update(),
+        clan(),
         clan_add(),
         clan_remove(),
         clan_list(),

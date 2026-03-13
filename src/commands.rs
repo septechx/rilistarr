@@ -540,21 +540,8 @@ pub fn get_commands() -> Vec<Command<(), Error>> {
     vec![
         help(),
         player(),
-        player_add(),
-        player_remove(),
-        player_list(),
         config(),
-        config_channel(),
-        config_interval(),
-        config_role(),
-        config_modrole(),
-        config_show(),
         leaderboard(),
-        leaderboard_update(),
         clan(),
-        clan_add(),
-        clan_remove(),
-        clan_list(),
-        clan_update(),
     ]
 }

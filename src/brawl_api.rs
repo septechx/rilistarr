@@ -22,6 +22,17 @@ pub struct Player {
     pub highest_trophies: Option<i32>,
 }
 
+#[allow(dead_code)]
+#[derive(Debug, Clone, Deserialize)]
+pub struct Clan {
+    pub tag: String,
+    pub name: String,
+    pub trophies: i32,
+    #[serde(rename = "memberCount")]
+    pub member_count: i32,
+}
+
+#[derive(Clone)]
 pub struct Client {
     http: reqwest::Client,
     base_url: String,
@@ -55,7 +66,7 @@ impl Client {
         };
 
         let encoded_tag = urlencoding::encode(&normalized_tag);
-        let url = format!("{}/players/%23{}", self.base_url, &encoded_tag[3..]);
+        let url = format!("{}/players/{}", self.base_url, encoded_tag);
 
         let response = self.http.get(&url).send().await?;
 
@@ -67,5 +78,27 @@ impl Client {
 
         let player = response.json::<Player>().await?;
         Ok(player)
+    }
+
+    pub async fn get_clan(&self, tag: &str) -> Result<Clan> {
+        let normalized_tag = if tag.starts_with('#') {
+            tag.to_string()
+        } else {
+            format!("#{}", tag)
+        };
+
+        let encoded_tag = urlencoding::encode(&normalized_tag);
+        let url = format!("{}/clubs/{}", self.base_url, encoded_tag);
+
+        let response = self.http.get(&url).send().await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let text = response.text().await?;
+            return Err(BrawlApiError::Api(format!("{}: {}", status, text)));
+        }
+
+        let clan = response.json::<Clan>().await?;
+        Ok(clan)
     }
 }

@@ -16,6 +16,10 @@ pub enum DataError {
     PlayerAlreadyExists,
     #[error("Player not found")]
     PlayerNotFound,
+    #[error("Clan already exists")]
+    ClanAlreadyExists,
+    #[error("Clan not found")]
+    ClanNotFound,
 }
 
 pub type Result<T> = std::result::Result<T, DataError>;
@@ -36,6 +40,12 @@ pub struct GuildData {
     pub mod_role_id: Option<u64>,
     #[serde(default)]
     pub players: Vec<String>,
+    #[serde(default)]
+    pub clans: Vec<String>,
+    #[serde(default)]
+    pub clan_leaderboard_message_id: Option<u64>,
+    #[serde(default)]
+    pub current_first_place_clan: Option<String>,
 }
 
 fn default_interval() -> u64 {
@@ -52,6 +62,9 @@ impl Default for GuildData {
             current_first_place_player: None,
             mod_role_id: None,
             players: Vec::new(),
+            clans: Vec::new(),
+            clan_leaderboard_message_id: None,
+            current_first_place_clan: None,
         }
     }
 }
@@ -107,6 +120,34 @@ impl GuildData {
         Ok(())
     }
 
+    pub fn add_clan(&mut self, clan_tag: String) -> Result<()> {
+        let normalized = normalize_tag(&clan_tag);
+        if self.clans.contains(&normalized) {
+            return Err(DataError::ClanAlreadyExists);
+        }
+        self.clans.push(normalized);
+        Ok(())
+    }
+
+    pub fn remove_clan(&mut self, clan_tag: &str) -> Result<()> {
+        let normalized = normalize_tag(clan_tag);
+        let idx = self
+            .clans
+            .iter()
+            .position(|c| c == &normalized)
+            .ok_or(DataError::ClanNotFound)?;
+        self.clans.remove(idx);
+        Ok(())
+    }
+
+    pub fn set_clan_message_id(&mut self, message_id: u64) {
+        self.clan_leaderboard_message_id = Some(message_id);
+    }
+
+    pub fn set_current_first_place_clan(&mut self, clan_tag: Option<String>) {
+        self.current_first_place_clan = clan_tag.map(|t| normalize_tag(&t));
+    }
+
     pub fn set_channel(&mut self, channel_id: u64) {
         self.leaderboard_channel_id = Some(channel_id);
         // Reset message ID when channel changes
@@ -134,7 +175,16 @@ impl GuildData {
     }
 
     pub fn is_configured(&self) -> bool {
+        self.leaderboard_channel_id.is_some()
+            && (!self.players.is_empty() || !self.clans.is_empty())
+    }
+
+    pub fn is_player_configured(&self) -> bool {
         self.leaderboard_channel_id.is_some() && !self.players.is_empty()
+    }
+
+    pub fn is_clan_configured(&self) -> bool {
+        self.leaderboard_channel_id.is_some() && !self.clans.is_empty()
     }
 }
 

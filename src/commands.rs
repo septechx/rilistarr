@@ -23,7 +23,7 @@ pub async fn help(
 }
 
 /// Add a player to the leaderboard (Admin or Mod only)
-#[poise::command(slash_command, guild_only)]
+#[poise::command(slash_command, guild_only, rename = "player add")]
 pub async fn player_add(
     ctx: Context<'_>,
     #[description = "Player tag"]
@@ -69,7 +69,7 @@ pub async fn player_add(
 }
 
 /// Remove a player from the leaderboard (Admin or Mod only)
-#[poise::command(slash_command, guild_only)]
+#[poise::command(slash_command, guild_only, rename = "player remove")]
 pub async fn player_remove(
     ctx: Context<'_>,
     #[description = "Player tag"] tag: String,
@@ -109,7 +109,7 @@ pub async fn player_remove(
 }
 
 /// List all players on the leaderboard
-#[poise::command(slash_command, guild_only)]
+#[poise::command(slash_command, guild_only, rename = "player list")]
 pub async fn player_list(ctx: Context<'_>) -> Result<(), Error> {
     let guild_id = ctx
         .guild_id()
@@ -117,7 +117,7 @@ pub async fn player_list(ctx: Context<'_>) -> Result<(), Error> {
     let guild_data = GuildData::load(guild_id.get())?;
 
     if guild_data.players.is_empty() {
-        ctx.say("📋 No players on the leaderboard yet. Use `/player_add` to add some!")
+        ctx.say("📋 No players on the leaderboard yet. Use `/player add` to add some!")
             .await?;
         return Ok(());
     }
@@ -133,7 +133,7 @@ pub async fn player_list(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 /// Set the leaderboard channel (Admin only)
-#[poise::command(slash_command, guild_only)]
+#[poise::command(slash_command, guild_only, rename = "config channel")]
 pub async fn config_channel(
     ctx: Context<'_>,
     #[description = "Channel for the leaderboard"] channel: serenity::GuildChannel,
@@ -164,7 +164,7 @@ pub async fn config_channel(
 }
 
 /// Set the update interval in minutes (Admin only)
-#[poise::command(slash_command, guild_only)]
+#[poise::command(slash_command, guild_only, rename = "config interval")]
 pub async fn config_interval(
     ctx: Context<'_>,
     #[description = "Update interval in minutes (minimum 5)"]
@@ -196,7 +196,7 @@ pub async fn config_interval(
 }
 
 /// Set the role for #1 player (Admin only)
-#[poise::command(slash_command, guild_only)]
+#[poise::command(slash_command, guild_only, rename = "config role")]
 pub async fn config_role(
     ctx: Context<'_>,
     #[description = "Role for the #1 player"] role: serenity::Role,
@@ -226,7 +226,7 @@ pub async fn config_role(
 }
 
 /// Set the mod role for player management (Admin only)
-#[poise::command(slash_command, guild_only)]
+#[poise::command(slash_command, guild_only, rename = "config modrole")]
 pub async fn config_modrole(
     ctx: Context<'_>,
     #[description = "Role for moderators (can add/remove players)"] role: serenity::Role,
@@ -255,7 +255,7 @@ pub async fn config_modrole(
 }
 
 /// Show current configuration
-#[poise::command(slash_command, guild_only)]
+#[poise::command(slash_command, guild_only, rename = "config show")]
 pub async fn config_show(ctx: Context<'_>) -> Result<(), Error> {
     let guild_id = ctx
         .guild_id()
@@ -298,7 +298,7 @@ pub async fn config_show(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 /// Force update the leaderboard now (Admin or Mod only)
-#[poise::command(slash_command, guild_only)]
+#[poise::command(slash_command, guild_only, rename = "leaderboard update")]
 pub async fn leaderboard_update(ctx: Context<'_>) -> Result<(), Error> {
     let guild_id = ctx
         .guild_id()
@@ -320,16 +320,16 @@ pub async fn leaderboard_update(ctx: Context<'_>) -> Result<(), Error> {
 
     let updater = LeaderboardUpdater::new(ctx.serenity_context().clone(), &token);
 
-    match updater.update_guild(guild_id).await {
+    match updater.update_player_leaderboard(guild_id).await {
         Ok(_) => {
             ctx.say("✅ Leaderboard updated successfully!").await?;
         }
         Err(LeaderboardError::ChannelNotConfigured) => {
-            ctx.say("❌ Leaderboard channel not configured. Use `/config_channel` first.")
+            ctx.say("❌ Leaderboard channel not configured. Use `/config channel` first.")
                 .await?;
         }
         Err(LeaderboardError::NoPlayers) => {
-            ctx.say("❌ No players on the leaderboard. Use `/player_add` to add some.")
+            ctx.say("❌ No players on the leaderboard. Use `/player add` to add some.")
                 .await?;
         }
         Err(e) => {
@@ -341,10 +341,115 @@ pub async fn leaderboard_update(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-/// Show the current leaderboard (Admin or Mod only)
-#[poise::command(slash_command, guild_only)]
-pub async fn leaderboard_show(ctx: Context<'_>) -> Result<(), Error> {
-    // This is the same as update for now
+/// Add a clan to the leaderboard (Admin or Mod only)
+#[poise::command(slash_command, guild_only, rename = "clan add")]
+pub async fn clan_add(
+    ctx: Context<'_>,
+    #[description = "Clan tag"]
+    #[min_length = 3]
+    tag: String,
+) -> Result<(), Error> {
+    let guild_id = ctx
+        .guild_id()
+        .ok_or("This command must be used in a server")?;
+    let member = ctx
+        .author_member()
+        .await
+        .ok_or("Could not get member info")?;
+
+    if !has_admin_or_mod_permission(ctx.serenity_context(), guild_id, &member).await? {
+        ctx.say("❌ You need to be an admin or have the mod role to use this command.")
+            .await?;
+        return Ok(());
+    }
+
+    let mut guild_data = GuildData::load(guild_id.get())?;
+
+    match guild_data.add_clan(tag.clone()) {
+        Ok(_) => {
+            guild_data.save(guild_id.get())?;
+            ctx.say(format!("✅ Clan `{}` added to the leaderboard!", tag))
+                .await?;
+        }
+        Err(DataError::ClanAlreadyExists) => {
+            ctx.say(format!("⚠️ Clan `{}` is already on the leaderboard.", tag))
+                .await?;
+        }
+        Err(e) => {
+            ctx.say(format!("❌ Error adding clan: {}", e)).await?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Remove a clan from the leaderboard (Admin or Mod only)
+#[poise::command(slash_command, guild_only, rename = "clan remove")]
+pub async fn clan_remove(
+    ctx: Context<'_>,
+    #[description = "Clan tag"] tag: String,
+) -> Result<(), Error> {
+    let guild_id = ctx
+        .guild_id()
+        .ok_or("This command must be used in a server")?;
+    let member = ctx
+        .author_member()
+        .await
+        .ok_or("Could not get member info")?;
+
+    if !has_admin_or_mod_permission(ctx.serenity_context(), guild_id, &member).await? {
+        ctx.say("❌ You need to be an admin or have the mod role to use this command.")
+            .await?;
+        return Ok(());
+    }
+
+    let mut guild_data = GuildData::load(guild_id.get())?;
+
+    match guild_data.remove_clan(&tag) {
+        Ok(_) => {
+            guild_data.save(guild_id.get())?;
+            ctx.say(format!("✅ Clan `{}` removed from the leaderboard!", tag))
+                .await?;
+        }
+        Err(DataError::ClanNotFound) => {
+            ctx.say(format!("⚠️ Clan `{}` is not on the leaderboard.", tag))
+                .await?;
+        }
+        Err(e) => {
+            ctx.say(format!("❌ Error removing clan: {}", e)).await?;
+        }
+    }
+
+    Ok(())
+}
+
+/// List all clans on the leaderboard
+#[poise::command(slash_command, guild_only, rename = "clan list")]
+pub async fn clan_list(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = ctx
+        .guild_id()
+        .ok_or("This command must be used in a server")?;
+    let guild_data = GuildData::load(guild_id.get())?;
+
+    if guild_data.clans.is_empty() {
+        ctx.say("📋 No clans on the leaderboard yet. Use `/clan add` to add some!")
+            .await?;
+        return Ok(());
+    }
+
+    let clans_list = guild_data.clans.join("\n");
+    ctx.say(format!(
+        "📋 **Clans on leaderboard:**\n```{}```",
+        clans_list
+    ))
+    .await?;
+
+    Ok(())
+}
+
+/// Force update the clan leaderboard now (Admin or Mod only)
+#[poise::command(slash_command, guild_only, rename = "clan update")]
+pub async fn clan_update(ctx: Context<'_>) -> Result<(), Error> {
     let guild_id = ctx
         .guild_id()
         .ok_or("This command must be used in a server")?;
@@ -365,20 +470,20 @@ pub async fn leaderboard_show(ctx: Context<'_>) -> Result<(), Error> {
 
     let updater = LeaderboardUpdater::new(ctx.serenity_context().clone(), &token);
 
-    match updater.update_guild(guild_id).await {
+    match updater.update_clan_leaderboard(guild_id).await {
         Ok(_) => {
-            ctx.say("✅ Leaderboard updated successfully!").await?;
+            ctx.say("✅ Clan leaderboard updated successfully!").await?;
         }
         Err(LeaderboardError::ChannelNotConfigured) => {
-            ctx.say("❌ Leaderboard channel not configured. Use `/config_channel` first.")
+            ctx.say("❌ Leaderboard channel not configured. Use `/config channel` first.")
                 .await?;
         }
-        Err(LeaderboardError::NoPlayers) => {
-            ctx.say("❌ No players on the leaderboard. Use `/player_add` to add some.")
+        Err(LeaderboardError::NoClans) => {
+            ctx.say("❌ No clans on the leaderboard. Use `/clan add` to add some.")
                 .await?;
         }
         Err(e) => {
-            ctx.say(format!("❌ Error updating leaderboard: {}", e))
+            ctx.say(format!("❌ Error updating clan leaderboard: {}", e))
                 .await?;
         }
     }
@@ -398,6 +503,9 @@ pub fn get_commands() -> Vec<Command<(), Error>> {
         config_modrole(),
         config_show(),
         leaderboard_update(),
-        leaderboard_show(),
+        clan_add(),
+        clan_remove(),
+        clan_list(),
+        clan_update(),
     ]
 }

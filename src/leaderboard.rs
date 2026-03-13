@@ -98,11 +98,10 @@ pub fn render_leaderboard(entries: &[LeaderboardEntry], title: &str) -> String {
         };
 
         text.push_str(&format!(
-            "{} **#{}** - {} (`{}`): **{}** trophies{}\n",
+            "{} **#{}** - {}: **{}** trophies{}\n",
             medal,
             i + 1,
             entry.name,
-            entry.tag,
             entry.trophies,
             extra_str
         ));

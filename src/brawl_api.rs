@@ -27,9 +27,35 @@ pub struct Player {
 pub struct Clan {
     pub tag: String,
     pub name: String,
+    pub description: Option<String>,
     pub trophies: i32,
-    #[serde(rename = "memberCount", default)]
-    pub member_count: Option<i32>,
+    #[serde(rename = "requiredTrophies", default)]
+    pub required_trophies: Option<i32>,
+    pub members: Vec<ClubMember>,
+    #[serde(rename = "type", default)]
+    pub type_: Option<String>,
+    #[serde(rename = "badgeId", default)]
+    pub badge_id: Option<i32>,
+    #[serde(rename = "isFamilyFriendly", default)]
+    pub is_family_friendly: Option<bool>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Deserialize)]
+pub struct ClubMember {
+    pub tag: String,
+    pub name: String,
+    pub trophies: i32,
+    pub role: Option<String>,
+    #[serde(rename = "nameColor", default)]
+    pub name_color: Option<String>,
+    pub icon: Option<PlayerIcon>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Deserialize)]
+pub struct PlayerIcon {
+    pub id: i32,
 }
 
 #[derive(Clone)]

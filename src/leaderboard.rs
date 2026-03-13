@@ -71,7 +71,7 @@ impl LeaderboardEntry {
         } else {
             format!("#{}", clan.tag)
         };
-        let extra = clan.member_count.map(|count| format!("{} members", count));
+        let extra = Some(format!("{} members", clan.members.len()));
         Self {
             name: clan.name.clone(),
             tag: tag_display,

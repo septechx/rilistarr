@@ -1,5 +1,5 @@
 use crate::data::{DataError, GuildData};
-use crate::leaderboard::{LeaderboardError, LeaderboardUpdater};
+use crate::leaderboard::LeaderboardUpdater;
 use crate::permissions::{has_admin_or_mod_permission, has_admin_permission};
 use poise::serenity_prelude as serenity;
 use poise::Command;
@@ -323,7 +323,7 @@ pub async fn config(ctx: Context<'_>) -> Result<(), Error> {
 // Leaderboard subcommands
 // ============================================================================
 
-/// Force update the leaderboard now (Admin or Mod only)
+/// Force update both leaderboards now (Admin or Mod only)
 #[poise::command(slash_command, guild_only, rename = "update")]
 pub async fn leaderboard_update(ctx: Context<'_>) -> Result<(), Error> {
     let guild_id = ctx
@@ -346,22 +346,21 @@ pub async fn leaderboard_update(ctx: Context<'_>) -> Result<(), Error> {
 
     let updater = LeaderboardUpdater::new(ctx.serenity_context().clone(), &token);
 
-    match updater.update_player_leaderboard(guild_id).await {
-        Ok(_) => {
-            ctx.say("✅ Leaderboard updated successfully!").await?;
-        }
-        Err(LeaderboardError::ChannelNotConfigured) => {
-            ctx.say("❌ Leaderboard channel not configured. Use `/config channel` first.")
-                .await?;
-        }
-        Err(LeaderboardError::NoPlayers) => {
-            ctx.say("❌ No players on the leaderboard. Use `/player add` to add some.")
-                .await?;
-        }
-        Err(e) => {
-            ctx.say(format!("❌ Error updating leaderboard: {}", e))
-                .await?;
-        }
+    let mut errors = Vec::new();
+
+    if let Err(e) = updater.update_player_leaderboard(guild_id).await {
+        errors.push(format!("player: {}", e));
+    }
+
+    if let Err(e) = updater.update_clan_leaderboard(guild_id).await {
+        errors.push(format!("clan: {}", e));
+    }
+
+    if errors.is_empty() {
+        ctx.say("✅ Both leaderboards updated successfully!").await?;
+    } else {
+        ctx.say(format!("⚠️ Leaderboards updated with errors: {}", errors.join(", ")))
+            .await?;
     }
 
     Ok(())
@@ -484,54 +483,10 @@ pub async fn clan_list(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-/// Force update the clan leaderboard now (Admin or Mod only)
-#[poise::command(slash_command, guild_only, rename = "update")]
-pub async fn clan_update(ctx: Context<'_>) -> Result<(), Error> {
-    let guild_id = ctx
-        .guild_id()
-        .ok_or("This command must be used in a server")?;
-    let member = ctx
-        .author_member()
-        .await
-        .ok_or("Could not get member info")?;
-
-    if !has_admin_or_mod_permission(ctx.serenity_context(), guild_id, &member).await? {
-        ctx.say("❌ You need to be an admin or have the mod role to use this command.")
-            .await?;
-        return Ok(());
-    }
-
-    let token = std::env::var("BRAWL_TOKEN").map_err(|_| "BRAWL_TOKEN not set")?;
-
-    ctx.defer().await?;
-
-    let updater = LeaderboardUpdater::new(ctx.serenity_context().clone(), &token);
-
-    match updater.update_clan_leaderboard(guild_id).await {
-        Ok(_) => {
-            ctx.say("✅ Clan leaderboard updated successfully!").await?;
-        }
-        Err(LeaderboardError::ChannelNotConfigured) => {
-            ctx.say("❌ Leaderboard channel not configured. Use `/config channel` first.")
-                .await?;
-        }
-        Err(LeaderboardError::NoClans) => {
-            ctx.say("❌ No clans on the leaderboard. Use `/clan add` to add some.")
-                .await?;
-        }
-        Err(e) => {
-            ctx.say(format!("❌ Error updating clan leaderboard: {}", e))
-                .await?;
-        }
-    }
-
-    Ok(())
-}
-
 /// Clan management
-#[poise::command(slash_command, guild_only, subcommands("clan_add", "clan_remove", "clan_list", "clan_update"))]
+#[poise::command(slash_command, guild_only, subcommands("clan_add", "clan_remove", "clan_list"))]
 pub async fn clan(ctx: Context<'_>) -> Result<(), Error> {
-    ctx.say("Use `/clan add`, `/clan remove`, `/clan list`, or `/clan update`")
+    ctx.say("Use `/clan add`, `/clan remove`, or `/clan list`")
         .await?;
     Ok(())
 }

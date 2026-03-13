@@ -46,7 +46,6 @@ A Discord bot that displays Brawl Stars leaderboards and automatically updates t
 - `/clan add <tag>` - Add a clan to the leaderboard
 - `/clan remove <tag>` - Remove a clan from the leaderboard
 - `/clan list` - List all clans on the leaderboard
-- `/clan update` - Force update the clan leaderboard
 
 ### Configuration (Admin only)
 
@@ -58,7 +57,7 @@ A Discord bot that displays Brawl Stars leaderboards and automatically updates t
 
 ### Leaderboard (Admin or Mod)
 
-- `/leaderboard update` - Force update the player leaderboard now
+- `/leaderboard update` - Force update both leaderboards now
 
 ## Permissions
 

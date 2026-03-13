@@ -28,8 +28,8 @@ pub struct Clan {
     pub tag: String,
     pub name: String,
     pub trophies: i32,
-    #[serde(rename = "memberCount")]
-    pub member_count: i32,
+    #[serde(rename = "memberCount", default)]
+    pub member_count: Option<i32>,
 }
 
 #[derive(Clone)]

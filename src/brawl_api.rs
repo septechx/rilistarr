@@ -70,13 +70,20 @@ impl Client {
 
         let response = self.http.get(&url).send().await?;
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let text = response.text().await?;
+        let status = response.status();
+        let text = response.text().await?;
+
+        if !status.is_success() {
             return Err(BrawlApiError::Api(format!("{}: {}", status, text)));
         }
 
-        let player = response.json::<Player>().await?;
+        if text.is_empty() {
+            return Err(BrawlApiError::Api("Empty response body".to_string()));
+        }
+
+        let player = serde_json::from_str::<Player>(&text).map_err(|e| {
+            BrawlApiError::Api(format!("Failed to parse JSON: {} - body: {}", e, &text[..text.len().min(200)]))
+        })?;
         Ok(player)
     }
 
@@ -92,13 +99,20 @@ impl Client {
 
         let response = self.http.get(&url).send().await?;
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let text = response.text().await?;
+        let status = response.status();
+        let text = response.text().await?;
+
+        if !status.is_success() {
             return Err(BrawlApiError::Api(format!("{}: {}", status, text)));
         }
 
-        let clan = response.json::<Clan>().await?;
+        if text.is_empty() {
+            return Err(BrawlApiError::Api("Empty response body".to_string()));
+        }
+
+        let clan = serde_json::from_str::<Clan>(&text).map_err(|e| {
+            BrawlApiError::Api(format!("Failed to parse JSON: {} - body: {}", e, &text[..text.len().min(200)]))
+        })?;
         Ok(clan)
     }
 }

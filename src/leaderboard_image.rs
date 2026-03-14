@@ -66,6 +66,12 @@ pub fn render_leaderboard_image(
     for (i, entry) in entries.iter().take(MAX_ENTRIES).enumerate() {
         let y = FIRST_ENTRY_Y + (i as f32 * (ENTRY_HEIGHT + ENTRY_SPACING)) + ENTRY_VERTICAL_OFFSET;
 
+        let name_text = if let Some(count) = entry.member_count {
+            format!("{} ({} members)", entry.name, count)
+        } else {
+            entry.name.clone()
+        };
+
         let name_scale = PxScale::from(NAME_FONT_SIZE);
         draw_text_mut(
             &mut img,
@@ -74,7 +80,7 @@ pub fn render_leaderboard_image(
             y as i32,
             name_scale,
             &font,
-            &entry.name,
+            &name_text,
         );
 
         let trophy_text = entry.trophies.to_string();

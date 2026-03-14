@@ -50,6 +50,7 @@ pub trait Leaderboard: Clone + Send + Sync + 'static {
 pub struct LeaderboardEntry {
     pub name: String,
     pub trophies: i32,
+    pub member_count: Option<u32>,
 }
 
 impl LeaderboardEntry {
@@ -57,6 +58,7 @@ impl LeaderboardEntry {
         Self {
             name: player.name.clone(),
             trophies: player.trophies,
+            member_count: None,
         }
     }
 
@@ -64,6 +66,7 @@ impl LeaderboardEntry {
         Self {
             name: clan.name.clone(),
             trophies: clan.trophies,
+            member_count: Some(clan.members.len() as u32),
         }
     }
 }

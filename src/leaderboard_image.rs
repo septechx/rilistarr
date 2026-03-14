@@ -13,11 +13,11 @@ const FIRST_ENTRY_Y: f32 = 108.0;
 const ENTRY_HEIGHT: f32 = 74.0;
 const ENTRY_SPACING: f32 = 39.0;
 const MAX_ENTRIES: usize = 8;
-const NAME_FONT_SIZE: f32 = 42.0;
-const TROPHY_FONT_SIZE: f32 = 42.0;
-const TITLE_FONT_SIZE: f32 = 60.0;
-const TIMESTAMP_FONT_SIZE: f32 = 24.0;
-const ENTRY_VERTICAL_OFFSET: f32 = 16.0;
+const NAME_FONT_SIZE: f32 = 50.0;
+const TROPHY_FONT_SIZE: f32 = 50.0;
+const TITLE_FONT_SIZE: f32 = 72.0;
+const TIMESTAMP_FONT_SIZE: f32 = 28.0;
+const ENTRY_VERTICAL_OFFSET: f32 = 12.0;
 
 fn load_font() -> Result<FontVec, Box<dyn std::error::Error>> {
     let font_data = std::fs::read(FONT_PATH)?;

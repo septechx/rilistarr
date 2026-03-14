@@ -1,5 +1,4 @@
 use ab_glyph::{Font, FontVec, PxScale, ScaleFont};
-use font_kit::source::SystemSource;
 use image::Rgba;
 use imageproc::drawing::draw_text_mut;
 use std::io::Cursor;
@@ -7,6 +6,7 @@ use std::io::Cursor;
 use crate::leaderboard::LeaderboardEntry;
 
 const TEMPLATE_PATH: &str = "assets/template.png";
+const FONT_PATH: &str = "assets/Inter-Bold.ttf";
 const NAME_X: f32 = 240.0;
 const TROPHY_X: f32 = 1750.0;
 const FIRST_ENTRY_Y: f32 = 108.0;
@@ -20,24 +20,8 @@ const TIMESTAMP_FONT_SIZE: f32 = 24.0;
 const ENTRY_VERTICAL_OFFSET: f32 = 16.0;
 
 fn load_font() -> Result<FontVec, Box<dyn std::error::Error>> {
-    let source = SystemSource::new();
-    let family = source.select_family_by_name("Inter")?;
-    let handle = family
-        .fonts()
-        .iter()
-        .find(|h| {
-            if let Ok(font) = h.load() {
-                font.properties().weight >= font_kit::properties::Weight::BOLD
-            } else {
-                false
-            }
-        })
-        .ok_or("No bold Inter font found")?;
-
-    let font = handle.load()?;
-    let font_data = font.copy_font_data().ok_or("Failed to get font data")?;
-    let font_vec = FontVec::try_from_vec(font_data.as_ref().clone())?;
-
+    let font_data = std::fs::read(FONT_PATH)?;
+    let font_vec = FontVec::try_from_vec(font_data)?;
     Ok(font_vec)
 }
 

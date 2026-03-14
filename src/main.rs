@@ -2,6 +2,7 @@ mod brawl_api;
 mod commands;
 mod data;
 mod leaderboard;
+mod leaderboard_image;
 mod permissions;
 
 use poise::serenity_prelude as serenity;

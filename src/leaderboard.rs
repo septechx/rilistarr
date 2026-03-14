@@ -1,7 +1,8 @@
 use crate::brawl_api::{BrawlApiError, Clan, Client, Player};
 use crate::data::{self, DataError, GuildData};
+use crate::leaderboard_image;
+use crate::serenity::CreateAttachment;
 use futures::future::join_all;
-use serenity::builder::EditMessage;
 use serenity::model::prelude::*;
 use serenity::prelude::*;
 use std::fmt::Debug;
@@ -17,6 +18,8 @@ pub enum LeaderboardError {
     Discord(#[from] serenity::Error),
     #[error("Data error: {0}")]
     Data(#[from] DataError),
+    #[error("Image error: {0}")]
+    Image(#[from] Box<dyn std::error::Error>),
     #[error("Channel not configured")]
     ChannelNotConfigured,
     #[error("No players configured")]
@@ -33,85 +36,36 @@ pub trait Leaderboard: Clone + Send + Sync + 'static {
     fn tags<'a>(&self, guild_data: &'a GuildData) -> &'a [String];
     async fn fetch_all(&self, client: &Client, tags: &[String]) -> Vec<Self::Entity>;
     fn sort(entities: &mut [Self::Entity]);
-    fn format(entities: &[Self::Entity]) -> String;
     fn get_first_tag(entity: &Self::Entity) -> String;
     fn set_first_place(&self, guild_data: &mut GuildData, tag: String);
     fn no_data_error(&self) -> LeaderboardError;
     fn get_message_id(&self, guild_data: &GuildData) -> Option<u64>;
     fn set_message_id(&self, guild_data: &mut GuildData, id: u64);
     fn get_first_place<'a>(&self, guild_data: &'a GuildData) -> Option<&'a String>;
+    fn title(&self) -> &str;
+    fn to_entries(entities: &[Self::Entity]) -> Vec<LeaderboardEntry>;
 }
 
 #[derive(Clone, Debug)]
 pub struct LeaderboardEntry {
     pub name: String,
-    pub tag: String,
     pub trophies: i32,
-    pub extra: Option<String>,
 }
 
 impl LeaderboardEntry {
     pub fn from_player(player: &Player) -> Self {
-        let tag_display = if player.tag.starts_with('#') {
-            player.tag.clone()
-        } else {
-            format!("#{}", player.tag)
-        };
         Self {
             name: player.name.clone(),
-            tag: tag_display,
             trophies: player.trophies,
-            extra: None,
         }
     }
 
     pub fn from_clan(clan: &Clan) -> Self {
-        let tag_display = if clan.tag.starts_with('#') {
-            clan.tag.clone()
-        } else {
-            format!("#{}", clan.tag)
-        };
-        let extra = Some(format!("{} members", clan.members.len()));
         Self {
             name: clan.name.clone(),
-            tag: tag_display,
             trophies: clan.trophies,
-            extra,
         }
     }
-}
-
-pub fn render_leaderboard(entries: &[LeaderboardEntry], title: &str) -> String {
-    let mut text = format!("**🏆 {}**\n\n", title);
-
-    for (i, entry) in entries.iter().enumerate() {
-        let medal = match i {
-            0 => "🥇",
-            1 => "🥈",
-            2 => "🥉",
-            _ => "▫️",
-        };
-
-        let extra_str = match &entry.extra {
-            Some(e) => format!(" ({})", e),
-            None => String::new(),
-        };
-
-        text.push_str(&format!(
-            "{} **#{}** - **{}**: **{}** trophies{}\n",
-            medal,
-            i + 1,
-            entry.name,
-            entry.trophies,
-            extra_str
-        ));
-    }
-
-    text.push_str("\n_Last updated: ");
-    text.push_str(&chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string());
-    text.push('_');
-
-    text
 }
 
 #[derive(Clone)]
@@ -195,12 +149,6 @@ impl Leaderboard for PlayerLeaderboard {
         entities.sort_by(|a, b| b.trophies.cmp(&a.trophies));
     }
 
-    fn format(entities: &[Player]) -> String {
-        let entries: Vec<LeaderboardEntry> =
-            entities.iter().map(LeaderboardEntry::from_player).collect();
-        render_leaderboard(&entries, "Brawl Stars Trophy Leaderboard")
-    }
-
     fn get_first_tag(entity: &Player) -> String {
         if entity.tag.starts_with('#') {
             entity.tag.clone()
@@ -227,6 +175,14 @@ impl Leaderboard for PlayerLeaderboard {
 
     fn get_first_place<'a>(&self, guild_data: &'a GuildData) -> Option<&'a String> {
         guild_data.current_first_place_player.as_ref()
+    }
+
+    fn title(&self) -> &str {
+        "Brawl Stars Trophy Leaderboard"
+    }
+
+    fn to_entries(entities: &[Player]) -> Vec<LeaderboardEntry> {
+        entities.iter().map(LeaderboardEntry::from_player).collect()
     }
 }
 
@@ -274,12 +230,6 @@ impl Leaderboard for ClanLeaderboard {
         entities.sort_by(|a, b| b.trophies.cmp(&a.trophies));
     }
 
-    fn format(entities: &[Clan]) -> String {
-        let entries: Vec<LeaderboardEntry> =
-            entities.iter().map(LeaderboardEntry::from_clan).collect();
-        render_leaderboard(&entries, "Brawl Stars Clan Leaderboard")
-    }
-
     fn get_first_tag(entity: &Clan) -> String {
         if entity.tag.starts_with('#') {
             entity.tag.clone()
@@ -306,6 +256,14 @@ impl Leaderboard for ClanLeaderboard {
 
     fn get_first_place<'a>(&self, guild_data: &'a GuildData) -> Option<&'a String> {
         guild_data.current_first_place_clan.as_ref()
+    }
+
+    fn title(&self) -> &str {
+        "Brawl Stars Clan Leaderboard"
+    }
+
+    fn to_entries(entities: &[Clan]) -> Vec<LeaderboardEntry> {
+        entities.iter().map(LeaderboardEntry::from_clan).collect()
     }
 }
 
@@ -379,23 +337,46 @@ impl LeaderboardUpdater {
             }
         }
 
-        let leaderboard_text = L::format(&entities);
+        let entries = L::to_entries(&entities);
+        let title = leaderboard.title();
+
+        let image_bytes = leaderboard_image::render_leaderboard_image(&entries, title)?;
 
         let channel_id = ChannelId::new(channel_id);
 
         if let Some(message_id) = leaderboard.get_message_id(&guild_data) {
             let message_id = MessageId::new(message_id);
-            let edit = EditMessage::new().content(&leaderboard_text);
+            let attachment = CreateAttachment::bytes(image_bytes.clone(), "leaderboard.png");
+            let edit = serenity::builder::EditMessage::new()
+                .new_attachment(attachment);
             match channel_id.edit_message(&self.ctx, message_id, edit).await {
                 Ok(_) => {}
                 Err(_) => {
-                    let msg = channel_id.say(&self.ctx, &leaderboard_text).await?;
+                    let msg = channel_id
+                        .send_message(
+                            &self.ctx,
+                            serenity::builder::CreateMessage::new()
+                                .add_file(CreateAttachment::bytes(
+                                    image_bytes.clone(),
+                                    "leaderboard.png",
+                                )),
+                        )
+                        .await?;
                     leaderboard.set_message_id(&mut guild_data, msg.id.get());
                     guild_data.save(guild_id.get())?;
                 }
             }
         } else {
-            let msg = channel_id.say(&self.ctx, &leaderboard_text).await?;
+            let msg = channel_id
+                .send_message(
+                    &self.ctx,
+                    serenity::builder::CreateMessage::new()
+                        .add_file(CreateAttachment::bytes(
+                            image_bytes,
+                            "leaderboard.png",
+                        )),
+                )
+                .await?;
             leaderboard.set_message_id(&mut guild_data, msg.id.get());
             guild_data.save(guild_id.get())?;
         }

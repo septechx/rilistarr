@@ -3,7 +3,7 @@ FROM rust:1.93-slim AS builder
 WORKDIR /app
 COPY . .
 
-RUN apt-get update && apt-get install -y pkg-config libssl-dev
+RUN apt-get update && apt-get install -y pkg-config libssl-dev g++ libfontconfig1-dev
 RUN cargo build --release
 
 FROM debian:bookworm-slim
